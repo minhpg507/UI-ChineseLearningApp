@@ -1,0 +1,215 @@
+﻿@page "/luyen-dich"
+@layout FullScreenLayout
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+@inject HttpClient Http
+
+@* NẾU CHƯA CÓ DỮ LIỆU: HIỆN MÀN HÌNH CHỜ *@
+@if (QuizData == null || QuizData.Count == 0)
+{
+    <div class="text-center" style="margin-top: 100px;">
+        <h4 style="color: gray;">⏳ Đang tải bài học từ Server...</h4>
+    </div>
+}
+@* NẾU ĐÃ CÓ DỮ LIỆU: HIỆN GIAO DIỆN BÀI TẬP *@
+else
+{
+    <div class="app-container" tabindex="0" @ref="mainContainer" @onkeydown="HandleKeyDown">
+
+        <!-- Thanh Header chứa Progress Bar -->
+        <div class="top-header">
+            <button class="close-btn" title="Thoát" @onclick="ExitLesson">✖</button>
+            <div class="progress-bar-container">
+                <div class="progress-fill" style="width: @(ProgressPercentage)%;"></div>
+            </div>
+        </div>
+
+        <!-- Tiêu đề câu hỏi (Lấy từ Database) -->
+        <h2 class="title">@CurrentQuestion?.VietnameseMeaning</h2>
+
+        <!-- Khu vực 1: Các từ đã được chọn (Nằm phía trên) -->
+        <div class="drop-zone">
+            @foreach (var word in SelectedWords)
+            {
+                int currentPosition = SelectedWords.IndexOf(word) + 1;
+                bool isWrongPosition = HasChecked && !IsCorrect && (word.ExpectedOrder != currentPosition);
+
+                <button class="word-btn @(isWrongPosition ? "error-shake" : "")" @onclick="() => DeselectWord(word)">
+                    <span class="hanzi">@word.Hanzi</span>
+                    <span class="pinyin">@word.Pinyin</span>
+                </button>
+            }
+        </div>
+
+        <!-- Khu vực 2: Các từ để lựa chọn (Nằm phía dưới) -->
+        <div class="word-pool">
+            @foreach (var word in AvailableWords)
+            {
+                <button class="word-btn" @onclick="() => SelectWord(word)">
+                    <span class="hanzi">@word.Hanzi</span>
+                    <span class="pinyin">@word.Pinyin</span>
+                </button>
+            }
+        </div>
+
+        <!-- Nút kiểm tra -->
+        <div class="action-area">
+            <button class="submit-btn" @onclick="CheckAnswer">Gửi đáp án</button>
+        </div>
+
+        <!-- Thông báo kết quả -->
+        @if (HasChecked)
+        {
+            <div class="result-message @(IsCorrect ? "success" : "error")">
+                @(IsCorrect ? "🎉 Chính xác tuyệt đối!" : "❌ Sai thứ tự rồi, bạn hãy thử lại nhé.")
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private ElementReference mainContainer;
+
+    // --- CẤU TRÚC DỮ LIỆU TỪ API ---
+    public class QuestionItem
+    {
+        public int Id { get; set; }
+        public string VietnameseMeaning { get; set; }
+        public List<WordItem> Words { get; set; } = new List<WordItem>();
+    }
+
+    public class WordItem
+    {
+        public int Id { get; set; }
+        public string Hanzi { get; set; }
+        public string Pinyin { get; set; }
+        public int ExpectedOrder { get; set; }
+    }
+
+    // --- BIẾN TRẠNG THÁI ---
+    private List<QuestionItem> QuizData = new(); // Đã gộp chung về biến này
+    private QuestionItem? CurrentQuestion;
+    private int CurrentQuestionIndex = 0;
+
+    private double ProgressPercentage => QuizData.Count > 0 ? ((double)CurrentQuestionIndex / QuizData.Count) * 100 : 0;
+
+    private List<WordItem> AvailableWords = new();
+    private List<WordItem> SelectedWords = new();
+
+    private bool HasChecked = false;
+    private bool IsCorrect = false;
+
+    // 1. Tải dữ liệu khi mở trang
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var apiQuestions = await Http.GetFromJsonAsync<List<QuestionItem>>("api/Questions/get-lesson");
+
+            if (apiQuestions != null && apiQuestions.Count > 0)
+            {
+                // SỬA LỖI Ở ĐÂY: Gán dữ liệu API vào đúng biến QuizData
+                QuizData = apiQuestions;
+                LoadQuestion(0);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Lỗi tải dữ liệu: " + ex.Message);
+        }
+    }
+
+    // 2. Load câu hỏi
+    private void LoadQuestion(int index)
+    {
+        CurrentQuestionIndex = index;
+        CurrentQuestion = QuizData[index];
+
+        SelectedWords.Clear();
+        AvailableWords = CurrentQuestion.Words.OrderBy(w => Guid.NewGuid()).ToList();
+
+        HasChecked = false;
+        IsCorrect = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await mainContainer.FocusAsync();
+        }
+    }
+
+    private async Task SelectWord(WordItem word)
+    {
+        await JS.InvokeVoidAsync("speakChinese", word.Hanzi);
+        AvailableWords.Remove(word);
+        SelectedWords.Add(word);
+        HasChecked = false;
+    }
+
+    private async Task DeselectWord(WordItem word)
+    {
+        await JS.InvokeVoidAsync("speakChinese", word.Hanzi);
+        SelectedWords.Remove(word);
+        AvailableWords.Add(word);
+        HasChecked = false;
+    }
+
+    private void CheckAnswer()
+    {
+        HasChecked = true;
+        IsCorrect = true;
+
+        if (AvailableWords.Count > 0)
+        {
+            IsCorrect = false;
+            return;
+        }
+
+        for (int i = 0; i < SelectedWords.Count; i++)
+        {
+            if (SelectedWords[i].ExpectedOrder != i + 1)
+            {
+                IsCorrect = false;
+                break;
+            }
+        }
+    }
+
+    // 3. Xử lý chuyển câu
+    private async Task NextQuestion()
+    {
+        if (CurrentQuestionIndex < QuizData.Count - 1)
+        {
+            LoadQuestion(CurrentQuestionIndex + 1);
+        }
+        else
+        {
+            LoadQuestion(0);
+        }
+        await mainContainer.FocusAsync();
+    }
+
+    // 4. Xử lý phím Enter
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (!HasChecked)
+            {
+                CheckAnswer();
+            }
+            else if (HasChecked && IsCorrect)
+            {
+                await NextQuestion();
+            }
+        }
+    }
+
+    // 5. Thoát bài học
+    private void ExitLesson()
+    {
+        NavManager.NavigateTo("/");
+    }
+}

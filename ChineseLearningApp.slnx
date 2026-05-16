@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ChineseLearningApp.Api/ChineseLearningApp.Api.csproj" />
+  <Project Path="ChineseLearningApp/ChineseLearningApp.csproj" />
+</Solution>

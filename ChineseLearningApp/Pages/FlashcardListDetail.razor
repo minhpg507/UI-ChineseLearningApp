@@ -1,0 +1,661 @@
+﻿@page "/flashcardlist/{ListId:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<style>
+
+    /* Biến ô input thành ô của bảng Excel */
+    .excel-input {
+        width: 100%;
+        height: 100%;
+        min-height: 38px;
+        border: none;
+        padding: 8px 12px;
+        outline: none;
+        background-color: transparent;
+    }
+        /* Khi bấm vào ô nào, ô đó sẽ có viền đen bao quanh giống Excel */
+        .excel-input:focus {
+            box-shadow: inset 0 0 0 2px #000;
+            background-color: #fff;
+        }
+
+    /* Thiết kế bảng */
+    .excel-table th {
+        background-color: #f3f4f6;
+        color: #4b5563;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 10px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .excel-table td {
+        padding: 0 !important; 
+        border: 1px solid #e5e7eb;
+        vertical-align: middle;
+    }
+
+    .excel-row-num {
+        background-color: #f9fafb;
+        color: #6b7280;
+        text-align: center;
+        font-weight: 500;
+        width: 40px;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <!-- Banner -->
+    <div class="w-100 mb-4 rounded" style="height: 150px; background-image: url('https://study4.com/static/img/default_banner.jpg'); background-size: cover; background-position: center; background-color: #f0f0f0;"></div>
+    
+    <!-- Tiêu đề và nút bấm -->
+    <div class="d-flex align-items-center mb-4 gap-2">
+        <h2 class="fw-bold mb-0 me-3">Flashcards: Tên List (Tạm thời)</h2>
+        <button class="btn btn-secondary btn-sm me-2" @onclick="OpenEditListModal">Chỉnh sửa</button>        
+        <button class="btn btn-primary btn-sm" style="background-color: #3b5998; border: none;" @onclick="OpenSingleModal">Thêm từ mới</button>
+        <button class="btn btn-primary btn-sm" style="background-color: #3b5998; border: none;" @onclick="OpenBulkModal">Tạo hàng loạt</button>
+    </div>
+
+    <!-- Ghi chú -->
+    <div class="alert alert-success" style="background-color: #e6f4ea; color: #1e8e3e; border: none;">
+        Chú ý: nếu như list từ vựng của bạn là tiếng Trung, Nhật, hay Hàn, click vào nút chỉnh sửa để thay đổi ngôn ngữ. Audio mặc định là tiếng Anh-Anh và Anh-Mỹ.
+    </div>
+
+    @* --- KHU VỰC HIỂN THỊ DANH SÁCH TỪ VỰNG --- *@
+    @if (savedFlashcards == null)
+    {
+        <div class="text-center mt-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (savedFlashcards.Count == 0)
+    {
+        <p class="text-muted mt-4"><em>Chưa có flashcard nào trong list từ này.</em></p>
+    }
+    else
+    {
+        <a href="/practice/@ListId" class="btn border w-100 py-2 mb-3 mt-4 text-decoration-none" style="background-color: #f4f6fa; color: #3b5998; font-weight: 500;">
+            Luyện tập flashcards
+        </a>
+
+        <p class="mb-4"><a href="#" class="text-decoration-none" style="color: #3b5998;">🔀 Xem ngẫu nhiên</a></p>
+        <p class="fw-bold">List có @savedFlashcards.Count từ</p>
+
+        <!-- Danh sách các thẻ từ vựng -->
+        @foreach (var card in savedFlashcards)
+        {
+            <div class="card mb-3 border" style="border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="card-body position-relative">
+                    <div class="d-flex align-items-center mb-2">
+                        <h4 class="fw-bold mb-0 me-2">
+                            @card.FrontText
+
+                            @* Hiển thị loại từ trong ngoặc nếu có *@
+                            @if (!string.IsNullOrWhiteSpace(card.WordType))
+                            {
+                                <span class="text-muted fs-6 fw-normal">(@card.WordType)</span>
+                            }
+
+                            @* Hiển thị phiên âm màu xanh nếu có *@
+                            @if (!string.IsNullOrWhiteSpace(card.Pinyin))
+                            {
+                                <span class="text-primary ms-1" style="font-size: 1.1rem;">@card.Pinyin</span>
+                            }
+                        </h4>
+
+                        <button class="btn btn-sm btn-light text-primary rounded-circle me-1" @onclick="() => PlayAudio(card.FrontText)">🔊</button>
+                        <button class="btn btn-sm btn-light text-primary rounded-circle" @onclick="() => OpenEditModal(card)">📝</button>
+                    </div>
+
+                    <div class="mt-3">
+                        <p class="fw-bold mb-1" style="font-size: 0.9rem; color: #555;">Định nghĩa:</p>
+                        <p class="mb-0">@card.BackText</p>
+                    </div>
+
+                    @* PHẦN MỚI: Hiển thị Ví dụ nếu có dữ liệu *@
+                    @if (!string.IsNullOrWhiteSpace(card.Example))
+                    {
+                        <div class="mt-2 pt-2 border-top-dotted">
+                            <p class="fw-bold mb-1" style="font-size: 0.9rem; color: #555;">Ví dụ:</p>
+                            <ul class="mb-0 text-secondary">
+                                <li>@card.Example</li>
+                            </ul>
+                        </div>
+                    }
+
+                    @* PHẦN MỚI: Hiển thị Ghi chú nếu có dữ liệu *@
+                    @if (!string.IsNullOrWhiteSpace(card.Note))
+                    {
+                        <div class="mt-2">
+                            <p class="fw-bold mb-1" style="font-size: 0.9rem; color: #555;">Ghi chú:</p>
+                            <p class="mb-0 text-muted" style="font-style: italic;">@card.Note</p>
+                        </div>
+                    }
+
+                    <button class="btn btn-sm text-danger position-absolute" style="bottom: 10px; right: 10px;" @onclick="() => DeleteFlashcard(card.Id)">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@* ========================================== *@
+@* MODAL 1: THÊM 1 TỪ                         *@
+@* ========================================== *@
+@if (showSingleModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content p-2" style="border-radius: 15px;">
+                <div class="modal-header border-0">
+                    <h4 class="modal-title fw-bold">Tạo flashcard</h4>
+                    <button class="btn-close" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">List từ: <strong>Tên List</strong></p>
+
+                    <div class="mb-3">
+                        <label class="form-label">Từ mới*</label>
+                        <input type="text" class="form-control" @bind="singleFlashcard.FrontText">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Định nghĩa</label>
+                        <textarea class="form-control" rows="3" @bind="singleFlashcard.BackText"></textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-light w-100 mb-3 text-primary border d-flex justify-content-center align-items-center gap-2" @onclick="ToggleExtraFields">
+                        Thêm phiên âm, ví dụ, ảnh, ghi chú ...
+                        <span style="font-size: 12px;">@(showExtraFields ? "▲" : "▼")</span>
+                    </button>
+
+                    @if (showExtraFields)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Ảnh</label>
+                            <input type="file" class="form-control">
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Loại từ (N, V, ADJ...)</label>
+                                <input type="text" class="form-control" @bind="singleFlashcard.WordType">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Phiên âm</label>
+                                <input type="text" class="form-control" @bind="singleFlashcard.Pinyin">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ví dụ (mỗi dòng 1 câu)</label>
+                            <textarea class="form-control" rows="3" @bind="singleFlashcard.Example"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi chú</label>
+                            <textarea class="form-control" rows="3" @bind="singleFlashcard.Note"></textarea>
+                        </div>
+                    }
+
+                    <button class="btn btn-primary px-4 mt-2" style="background-color: #3b5998;" @onclick="SaveSingleFlashcard">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ========================================== *@
+@* MODAL 2: TẠO HÀNG LOẠT                     *@
+@* ========================================== *@
+@if (showBulkModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content" style="border-radius: 8px;">
+
+                <div class="modal-header border-0 pb-0 pt-4 px-4">
+                    <h3 class="modal-title fw-bold">Tạo flashcards</h3>
+                    <button type="button" class="btn-close fs-5" @onclick="CloseModals"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="table-responsive border rounded">
+                        <table class="table excel-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="excel-row-num"></th>
+                                    <th style="min-width: 150px;">Từ mới</th>
+                                    <th style="min-width: 200px;">Định nghĩa</th>
+                                    <th style="min-width: 100px;">Loại từ</th>
+                                    <th style="min-width: 250px;">Ví dụ</th>
+                                    <th style="min-width: 150px;">Phiên âm</th>
+                                    <th style="min-width: 200px;">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < bulkFlashcards.Count; i++)
+                                {
+                                    var r = i; // r là Row (Dòng)
+                                    <tr>
+                                        <td class="excel-row-num">@(r + 1)</td>
+                                        @* Cột 0: Từ mới *@
+                                        <td><input id="cell-@(r)-0" type="text" class="excel-input" @bind="bulkFlashcards[r].FrontText" @onkeydown="@(e => HandleGridKeyDown(e, r, 0))" /></td>
+                                        @* Cột 1: Định nghĩa *@
+                                        <td><input id="cell-@(r)-1" type="text" class="excel-input" @bind="bulkFlashcards[r].BackText" @onkeydown="@(e => HandleGridKeyDown(e, r, 1))" /></td>
+                                        @* Cột 2: Loại từ *@
+                                        <td><input id="cell-@(r)-2" type="text" class="excel-input" @bind="bulkFlashcards[r].WordType" @onkeydown="@(e => HandleGridKeyDown(e, r, 2))" /></td>
+                                        @* Cột 3: Ví dụ *@
+                                        <td><input id="cell-@(r)-3" type="text" class="excel-input" @bind="bulkFlashcards[r].Example" @onkeydown="@(e => HandleGridKeyDown(e, r, 3))" /></td>
+                                        @* Cột 4: Phiên âm *@
+                                        <td><input id="cell-@(r)-4" type="text" class="excel-input" @bind="bulkFlashcards[r].Pinyin" @onkeydown="@(e => HandleGridKeyDown(e, r, 4))" /></td>
+                                        @* Cột 5: Ghi chú (Vẫn giữ tính năng Enter thêm dòng) *@
+                                        <td><input id="cell-@(r)-5" type="text" class="excel-input" @bind="bulkFlashcards[r].Note" @onkeydown="@(e => HandleGridKeyDown(e, r, 5))" /></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4">
+                        <button class="btn px-4 py-2 text-white fw-bold" style="background-color: #2b3a70; border-radius: 4px;" @onclick="SaveBulkFlashcards">Lưu</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@* ========================================== *@
+@* MODAL 3: CẬP NHẬT TỪ VỰNG                  *@
+@* ========================================== *@
+@if (showEditModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content p-2" style="border-radius: 15px;">
+                <div class="modal-header border-0">
+                    <h4 class="modal-title fw-bold">Update flashcard</h4>
+                    <button class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">List từ: <strong>Tên List</strong></p>
+
+                    <div class="mb-3">
+                        <label class="form-label">Từ mới*</label>
+                        <input type="text" class="form-control" @bind="editFlashcard.FrontText">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Định nghĩa</label>
+                        <textarea class="form-control" rows="3" @bind="editFlashcard.BackText"></textarea>
+                    </div>
+
+                    @* Bấm để mở rộng form *@
+                    <button type="button" class="btn btn-light w-100 mb-3 text-primary border d-flex justify-content-center align-items-center gap-2" @onclick="ToggleExtraFields">
+                        Thêm phiên âm, ví dụ, ảnh, ghi chú ...
+                        <span style="font-size: 12px;">@(showExtraFields ? "▲" : "▼")</span>
+                    </button>
+
+                    @if (showExtraFields)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Loại từ (N, V...)</label>
+                                <input type="text" class="form-control" @bind="editFlashcard.WordType">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Phiên âm</label>
+                                <input type="text" class="form-control" @bind="editFlashcard.Pinyin">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ví dụ (mỗi dòng 1 câu)</label>
+                            <textarea class="form-control" rows="3" @bind="editFlashcard.Example"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi chú</label>
+                            <textarea class="form-control" rows="3" @bind="editFlashcard.Note"></textarea>
+                        </div>
+                    }
+
+                    <button class="btn btn-primary px-4 mt-2" style="background-color: #3b5998;" @onclick="SaveEditFlashcard">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ========================================== *@
+@* MODAL 4: CHỈNH SỬA THÔNG TIN LIST TỪ       *@
+@* ========================================== *@
+@if (showEditListModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 8px;">
+
+                <div class="modal-header border-0 pb-0 pt-4 px-4">
+                    <h4 class="modal-title fw-bold">Chỉnh sửa list từ</h4>
+                    <button type="button" class="btn-close fs-6" @onclick="CloseModals"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark">Tiêu đề*</label>
+                        <input type="text" class="form-control" @bind="listTitle" style="border-radius: 4px;" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark">Ngôn ngữ*</label>
+                        <select class="form-select" @bind="listLanguage" style="border-radius: 4px;">
+                            <option value="Tiếng Trung">Tiếng Trung</option>
+                            <option value="Tiếng Anh">Tiếng Anh</option>
+                            <option value="Tiếng Nhật">Tiếng Nhật</option>
+                            <option value="Tiếng Hàn">Tiếng Hàn</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-dark">Mô tả</label>
+                        <textarea class="form-control" rows="4" @bind="listDescription" style="border-radius: 4px;"></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <button class="btn px-4 text-white fw-bold" style="background-color: #2b3a70; border-radius: 4px;" @onclick="SaveListInfo">Lưu</button>
+                        <button class="btn text-white fw-bold px-4" style="background-color: #e53e3e; border-radius: 4px;" @onclick="DeleteList">Xoá</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ListId { get; set; }
+
+    private bool showSingleModal = false;
+    private bool showBulkModal = false;
+    // Danh sách chứa dữ liệu nhập hàng loạt
+    private List<BulkFlashcardItem> bulkFlashcards = new List<BulkFlashcardItem>();
+    private bool showExtraFields = false;
+
+    // Class dùng cho tính năng Thêm hàng loạt
+    public class BulkFlashcardItem
+    {
+        public string FrontText { get; set; }
+        public string BackText { get; set; }
+        public string Pinyin { get; set; }
+        public string WordType { get; set; }
+        public string Example { get; set; }
+        public string Note { get; set; }
+    }
+
+    // Danh sách các hàng đang hiển thị
+    private List<BulkFlashcardItem> bulkItems = new List<BulkFlashcardItem>();
+
+    // ------------------------------------------------
+
+    private void OpenSingleModal()
+    {
+        showSingleModal = true;
+        showExtraFields = false;
+    }
+
+    // Hàm mở Modal Tạo hàng loạt
+    private void OpenBulkModal()
+    {
+        bulkFlashcards = new List<BulkFlashcardItem>();
+        // Mặc định tạo sẵn 5 dòng cho người dùng nhập
+        for (int i = 0; i < 5; i++)
+        {
+            bulkFlashcards.Add(new BulkFlashcardItem());
+        }
+        showBulkModal = true;
+    }
+
+    // Hàm thêm dòng nếu người dùng muốn nhập nhiều hơn
+    private void AddMoreRows()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            bulkFlashcards.Add(new BulkFlashcardItem());
+        }
+    }
+
+    private void CloseModals()
+    {
+        showSingleModal = false;
+        showBulkModal = false;
+        showEditModal = false;  
+        showEditListModal = false; 
+    }
+
+    private void ToggleExtraFields() => showExtraFields = !showExtraFields;
+
+    // --- HÀM BẮT SỰ KIỆN PHÍM ENTER ---
+    private void HandleEnterKey(KeyboardEventArgs e, int rowIndex)
+    {
+        if (e.Key == "Enter")
+        {
+            // Nếu người dùng đang đứng ở hàng cuối cùng của danh sách
+            if (rowIndex == bulkItems.Count - 1)
+            {
+                // Thêm một hàng trống mới
+                bulkItems.Add(new BulkFlashcardItem());
+            }
+        }
+    }
+    // Biến để chứa dữ liệu của form Thêm 1 từ
+    private FlashcardDto singleFlashcard = new FlashcardDto();
+
+    // Lớp model trung gian khớp với SQL Server
+    public class FlashcardDto
+    {
+        public int Id { get; set; }
+        public string FrontText { get; set; }
+        public string BackText { get; set; }
+        public string Pinyin { get; set; }
+        public string WordType { get; set; }
+        public string Example { get; set; }
+        public string Note { get; set; }
+    }
+
+    // --- HÀM XỬ LÝ NÚT LƯU 1 TỪ ---
+    private async Task SaveSingleFlashcard()
+    {
+        if (string.IsNullOrWhiteSpace(singleFlashcard.FrontText)) return;
+
+        // Gom TẤT CẢ các trường dữ liệu để gửi lên Database
+        var payload = new
+        {
+            FrontText = singleFlashcard.FrontText,
+            BackText = string.IsNullOrWhiteSpace(singleFlashcard.BackText) ? "(Chưa có định nghĩa)" : singleFlashcard.BackText,
+            Pinyin = singleFlashcard.Pinyin,
+            WordType = singleFlashcard.WordType,
+            Example = singleFlashcard.Example,  
+            Note = singleFlashcard.Note         
+        };
+
+        // Gọi API lưu vào DB
+        await Http.PostAsJsonAsync($"api/WordLists/{ListId}/flashcards/single", payload);
+
+        singleFlashcard = new FlashcardDto(); 
+        CloseModals(); 
+        await LoadFlashcards(); 
+    }
+
+    // --- HÀM XỬ LÝ NÚT LƯU HÀNG LOẠT ---
+    private async Task SaveBulkFlashcards()
+    {
+        // Lọc ra các dòng có nhập từ mới (bỏ qua các dòng trống)
+        var validItems = bulkFlashcards.Where(x => !string.IsNullOrWhiteSpace(x.FrontText)).ToList();
+        if (!validItems.Any()) return;
+
+        // Gom đầy đủ dữ liệu của từng dòng
+        var payload = validItems.Select(x => new
+        {
+            FrontText = x.FrontText,
+            BackText = string.IsNullOrWhiteSpace(x.BackText) ? "(Chưa có định nghĩa)" : x.BackText,
+            Pinyin = x.Pinyin,
+            WordType = x.WordType, 
+            Example = x.Example,  
+            Note = x.Note        
+        }).ToList();
+
+        // Gửi mảng payload lên API
+        await Http.PostAsJsonAsync($"api/WordLists/{ListId}/flashcards/bulk", payload);
+
+        CloseModals(); 
+        await LoadFlashcards(); 
+    }
+
+    // Hàm xử lý di chuyển bằng 4 phím mũi tên và phím Enter
+    private async Task HandleGridKeyDown(KeyboardEventArgs e, int r, int c)
+    {
+        int maxRow = bulkFlashcards.Count - 1;
+        int maxCol = 5; 
+
+        // 1. Nếu bấm Enter ở ô cuối cùng -> Thêm dòng mới
+        if (e.Key == "Enter" && r == maxRow && c == maxCol)
+        {
+            bulkFlashcards.Add(new BulkFlashcardItem());
+            return;
+        }
+
+        // 2. Xử lý 4 phím mũi tên
+        try
+        {
+            if (e.Key == "ArrowUp" && r > 0)
+            {
+                await JS.InvokeVoidAsync("eval", $"document.getElementById('cell-{r - 1}-{c}').focus()");
+            }
+            else if (e.Key == "ArrowDown" && r < maxRow)
+            {
+                await JS.InvokeVoidAsync("eval", $"document.getElementById('cell-{r + 1}-{c}').focus()");
+            }
+            else if (e.Key == "ArrowLeft" && c > 0)
+            {
+                await JS.InvokeVoidAsync("eval", $"document.getElementById('cell-{r}-{c - 1}').focus()");
+            }
+            else if (e.Key == "ArrowRight" && c < maxCol)
+            {
+                await JS.InvokeVoidAsync("eval", $"document.getElementById('cell-{r}-{c + 1}').focus()");
+            }
+        }
+        catch
+        {
+
+        }
+    }
+
+    // 1. Khai báo biến danh sách
+    private List<FlashcardDto> savedFlashcards = new List<FlashcardDto>();
+
+    // 2. Hàm tự động chạy khi trang vừa mở lên (để lấy dữ liệu ngay lập tức)
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFlashcards();
+    }
+
+    // Hàm gọi API lấy dữ liệu
+    private async Task LoadFlashcards()
+    {
+        try
+        {
+            savedFlashcards = await Http.GetFromJsonAsync<List<FlashcardDto>>($"api/WordLists/{ListId}/flashcards");
+        }
+        catch { }
+    }
+    // --- BIẾN VÀ HÀM CHO PHẦN EDIT & DELETE ---
+    private bool showEditModal = false;
+    private FlashcardDto editFlashcard = new FlashcardDto();
+
+    // Hàm 1: Phát âm thanh
+    private async Task PlayAudio(string text)
+    {
+        await JS.InvokeVoidAsync("speakChinese", text);
+    }
+
+    // Hàm 2: Xóa từ vựng
+    private async Task DeleteFlashcard(int flashcardId)
+    {
+        // Gọi API xóa
+        await Http.DeleteAsync($"api/WordLists/{ListId}/flashcards/{flashcardId}");
+        await LoadFlashcards(); // Tải lại danh sách
+    }
+
+    // Hàm 3: Mở bảng sửa từ vựng
+    private void OpenEditModal(FlashcardDto card)
+    {
+        // Copy toàn bộ dữ liệu của thẻ được chọn đưa vào Modal
+        editFlashcard = new FlashcardDto
+        {
+            Id = card.Id,
+            FrontText = card.FrontText,
+            BackText = card.BackText,
+            Pinyin = card.Pinyin,
+            WordType = card.WordType,
+            Example = card.Example,
+            Note = card.Note
+        };
+
+        showEditModal = true;
+        showExtraFields = true;
+    }
+
+    // Hàm 4: Đóng bảng sửa
+    private void CloseEditModal() => showEditModal = false;
+
+    // Hàm 5
+    private async Task SaveEditFlashcard()
+    {
+        if (string.IsNullOrWhiteSpace(editFlashcard.FrontText)) return;
+
+        // Phải tạo object payload có đầy đủ các trường mới
+        var payload = new
+        {
+            FrontText = editFlashcard.FrontText,
+            BackText = editFlashcard.BackText,
+            Pinyin = editFlashcard.Pinyin,
+            WordType = editFlashcard.WordType, 
+            Example = editFlashcard.Example,   
+            Note = editFlashcard.Note    
+        };
+
+        await Http.PutAsJsonAsync($"api/WordLists/{ListId}/flashcards/{editFlashcard.Id}", payload);
+
+        showEditModal = false;
+        await LoadFlashcards();
+    }
+    // --- BIẾN VÀ HÀM CHO MODAL CHỈNH SỬA LIST TỪ ---
+    private bool showEditListModal = false;
+
+    // Tạm thời tạo biến lưu thông tin List 
+    private string listTitle = "HSK1";
+    private string listLanguage = "Tiếng Trung";
+    private string listDescription = "";
+
+    // Mở Modal Chỉnh sửa List
+    private void OpenEditListModal()
+    {
+        showEditListModal = true;
+    }
+
+    // Hàm Lưu thông tin List
+    private void SaveListInfo()
+    {
+        showEditListModal = false; 
+    }
+
+    // Hàm Xóa List
+    private async Task DeleteList()
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa toàn bộ List từ này không?");
+        if (confirm)
+        {
+            showEditListModal = false;
+        }
+    }
+}

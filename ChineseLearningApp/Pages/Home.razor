@@ -1,0 +1,233 @@
+﻿@page "/"
+
+<style>
+    /* CSS cho thẻ Streak màu xanh bên trái */
+    .streak-card {
+        background: linear-gradient(135deg, #0097e6, #00a8ff);
+        border-radius: 20px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 168, 255, 0.3);
+    }
+        /* Tạo hình ngọn lửa mờ mờ ở góc dưới */
+        .streak-card::after {
+            content: "🔥";
+            font-size: 140px;
+            position: absolute;
+            right: -20px;
+            bottom: -40px;
+            opacity: 0.2;
+        }
+
+    /* CSS cho thẻ Lịch điểm danh bên phải */
+    .goal-card {
+        border-radius: 20px;
+        border: 2px solid #eef2f5;
+        background-color: #fff;
+    }
+
+    /* CSS cho từng ô ngày trong tuần */
+    .day-box {
+        width: 65px;
+        height: 85px;
+        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid;
+        font-weight: bold;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    /* Các trạng thái của ô ngày */
+    .day-missed {
+        border-color: #ffdad9;
+        color: #333;
+    }
+
+        .day-missed .icon {
+            color: #dff2f8;
+            font-size: 1.2rem;
+            background: #e0f4fc;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .day-missed .icon::after {
+                content: "!";
+                color: #bde4f4;
+                font-weight: 900;
+            }
+
+    .day-completed {
+        border-color: #d1ecf9;
+        color: #333;
+    }
+
+        .day-completed .icon {
+            color: #00a8ff;
+            font-size: 1.2rem;
+            background: #e0f4fc;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .day-completed .icon::after {
+                content: "✔";
+            }
+
+    .day-pending {
+        border-color: #eef2f5;
+        color: #333;
+    }
+
+        .day-pending .icon {
+            color: #d1d8dd;
+            font-size: 1.2rem;
+            background: #f4f7f6;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .day-pending .icon::after {
+                content: "○";
+                font-size: 0.8rem;
+            }
+
+    .day-today {
+        border-color: #00a8ff;
+        background-color: #f0f8ff;
+        color: #333;
+        box-shadow: 0 0 10px rgba(0,168,255,0.2);
+    }
+
+        .day-today:hover {
+            background-color: #e1f0ff;
+            transform: scale(1.05);
+        }
+
+        .day-today .icon::after {
+            content: "Điểm danh";
+            font-size: 0.6rem;
+            color: #00a8ff;
+        }
+</style>
+
+<div class="container mt-4" style="max-width: 1000px;">
+    <div class="row g-4">
+
+        <div class="col-md-4">
+            <div class="streak-card h-100 p-4 d-flex flex-column justify-content-center">
+                <h1 class="fw-bold mb-0" style="font-size: 4rem;">@streakCount</h1>
+                <h3 class="fw-bold mb-2">Streak Days</h3>
+                @if (isCheckedInToday)
+                {
+                    <p class="mb-0 fs-6 fw-light">Đã điểm danh hôm nay</p>
+                }
+                else
+                {
+                    <p class="mb-0 fs-6 fw-light">Chưa điểm danh hôm nay</p>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="goal-card h-100 p-4 d-flex flex-column justify-content-center shadow-sm">
+
+                <div class="d-flex align-items-center mb-4">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 40px; height: 40px; background-color: #e0f4fc;">
+                        <span class="fs-5">🔥</span>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0" style="color: #0056b3;">Daily Goal</h4>
+                        <p class="text-muted mb-0 small">
+                            @(isCheckedInToday ? "Đã điểm danh hôm nay, tuyệt vời!" : "Click vào hôm nay để điểm danh và nhận coin")
+                        </p>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    @foreach (var day in weekDays)
+                    {
+                        <div class="day-box @GetDayCssClass(day)" @onclick="() => CheckIn(day)">
+                            <div class="icon mb-2"></div>
+                            <div>@day.Name</div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Biến lưu trạng thái
+    private int streakCount = 0;
+    private bool isCheckedInToday = false;
+
+    // Định nghĩa các trạng thái của một ngày
+    public enum DayStatus { Missed, Completed, Pending, TodayUnchecked }
+
+    // Model của 1 ngày
+    public class DayItem
+    {
+        public string Name { get; set; }
+        public DayStatus Status { get; set; }
+        public bool IsToday { get; set; }
+    }
+
+    // Dữ liệu mô phỏng 7 ngày
+    private List<DayItem> weekDays = new List<DayItem>
+    {
+        new DayItem { Name = "Sat", Status = DayStatus.Missed, IsToday = false },
+        new DayItem { Name = "Sun", Status = DayStatus.Missed, IsToday = false },
+        new DayItem { Name = "Mon", Status = DayStatus.Missed, IsToday = false },
+        new DayItem { Name = "Tue", Status = DayStatus.Missed, IsToday = false },
+        new DayItem { Name = "Wed", Status = DayStatus.Missed, IsToday = false },
+        new DayItem { Name = "Thu", Status = DayStatus.TodayUnchecked, IsToday = true },
+        new DayItem { Name = "Fri", Status = DayStatus.Pending, IsToday = false }
+    };
+
+    // Hàm chọn CSS tương ứng cho từng ngày
+    private string GetDayCssClass(DayItem day)
+    {
+        if (day.IsToday && !isCheckedInToday) return "day-today";
+
+        return day.Status switch
+        {
+            DayStatus.Missed => "day-missed",
+            DayStatus.Completed => "day-completed",
+            DayStatus.Pending => "day-pending",
+            _ => "day-pending"
+        };
+    }
+
+    // Hàm xử lý sự kiện bấm điểm danh
+    private void CheckIn(DayItem day)
+    {
+        // Chỉ cho phép click nếu đúng là Hôm nay và chưa điểm danh
+        if (day.IsToday && !isCheckedInToday)
+        {
+            day.Status = DayStatus.Completed; 
+            isCheckedInToday = true;          
+            streakCount = 1;                  
+        }
+    }
+}

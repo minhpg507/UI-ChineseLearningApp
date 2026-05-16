@@ -1,0 +1,94 @@
+﻿@page "/flashcards"
+@inject HttpClient Http
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">List từ đã tạo:</h2>
+        <button class="btn btn-primary" @onclick="OpenModal">➕ Tạo list từ</button>
+    </div>
+
+    @if (allLists == null)
+    {
+        <p><em>Đang tải danh sách...</em></p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var item in allLists)
+            {
+                <div class="col">
+                    <a href="/flashcardlist/@item.Id" class="text-decoration-none">
+                        <div class="card h-100 shadow-sm border-0 p-3" style="border-radius: 15px; cursor: pointer;">
+                            <div class="card-body">
+                                <h5 class="card-title fw-bold text-dark">@item.Title</h5>
+                                <p class="text-secondary mb-2">@item.Description</p>
+                                <p class="card-text"><small class="text-muted">📅 @item.CreatedAt.ToShortDateString()</small></p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@* MODAL POPUP TẠO LIST TỪ (GIỐNG ẢNH BẠN CHỤP) *@
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content p-3" style="border-radius: 20px;">
+                <div class="modal-header border-0">
+                    <h3 class="modal-title fw-bold">Tạo list từ</h3>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="fw-bold">Tiêu đề*</label>
+                        <input type="text" @bind="newList.Title" class="form-control" placeholder="Nhập tiêu đề...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">Mô tả</label>
+                        <textarea @bind="newList.Description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-primary px-4 py-2" @onclick="SaveList" style="background-color: #3b5998;">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<WordList> allLists;
+    private bool showModal = false;
+    private WordList newList = new WordList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData() => allLists = await Http.GetFromJsonAsync<List<WordList>>("api/WordLists");
+    private void OpenModal() { newList = new WordList(); showModal = true; }
+    private void CloseModal() => showModal = false;
+
+    private async Task SaveList()
+    {
+        if (!string.IsNullOrEmpty(newList.Title))
+        {
+            await Http.PostAsJsonAsync("api/WordLists", newList);
+            showModal = false;
+            await LoadData(); // Tải lại danh sách sau khi lưu
+        }
+    }
+
+    public class WordList
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+    }
+}

@@ -1,0 +1,152 @@
+﻿@page "/practice/{ListId:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4 mb-5" style="max-width: 800px;">
+    <h2 class="fw-bold mb-4 text-uppercase">Luyện tập: CỤM ĐỘNG TỪ (Ví dụ)</h2>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="/flashcardlist/@ListId" class="text-decoration-none me-3">&lt;&lt; Xem tất cả</a>
+            <a href="#" class="text-decoration-none text-secondary">⚙ Cài đặt chế độ review</a>
+        </div>
+        <button class="btn btn-link text-danger text-decoration-none">❌ Dừng học list từ này</button>
+    </div>
+
+    @if (flashcards == null)
+    {
+        <div class="text-center mt-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (flashcards.Count == 0)
+    {
+        <div class="alert alert-warning">List này chưa có từ vựng nào để luyện tập.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4 position-relative"
+             style="height: 400px; border-radius: 15px; cursor: pointer; transition: 0.3s;"
+             @onclick="FlipCard">
+
+            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+
+                @if (!isFlipped)
+                {
+                    <span class="badge bg-light text-dark border position-absolute top-0 end-0 m-3 fs-6">Ôn tập</span>
+
+                    <div class="d-flex align-items-center justify-content-center">
+                        <h1 class="fw-bold display-4 mb-0 me-3">@CurrentCard.FrontText</h1>
+                        <button class="btn btn-light text-primary rounded-circle shadow-sm"
+                                style="width: 45px; height: 45px;"
+                                @onclick="PlayAudio"
+                                @onclick:stopPropagation="true">
+                            <i class="bi bi-volume-up-fill fs-4">🔊</i>
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(CurrentCard.Pinyin))
+                    {
+                        <h4 class="text-secondary mt-2">@CurrentCard.Pinyin</h4>
+                    }
+                }
+                else
+                {
+                    <p class="fw-bold text-secondary mb-2" style="font-size: 1.1rem;">Định nghĩa:</p>
+                    <h2 class="fw-bold">@CurrentCard.BackText</h2>
+
+                    @if (!string.IsNullOrWhiteSpace(CurrentCard.Example))
+                    {
+                        <div class="mt-4 text-start p-3 bg-light rounded w-75">
+                            <p class="mb-0"><em>" @CurrentCard.Example "</em></p>
+                        </div>
+                    }
+                }
+
+                <button class="btn btn-link text-dark position-absolute bottom-0 end-0 m-3 fs-3">
+                    🔄
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm" style="border-radius: 15px;">
+            <div class="card-body d-flex justify-content-around text-center py-3">
+                <div style="cursor:pointer;" @onclick="NextCard">
+                    <div class="fs-3 text-success">😊</div>
+                    <div class="fw-bold text-success">Dễ</div>
+                </div>
+                <div style="cursor:pointer;" @onclick="NextCard">
+                    <div class="fs-3 text-warning">😐</div>
+                    <div class="fw-bold text-warning">Trung bình</div>
+                </div>
+                <div style="cursor:pointer;" @onclick="NextCard">
+                    <div class="fs-3 text-danger">😵</div>
+                    <div class="fw-bold text-danger">Khó</div>
+                </div>
+                <div style="cursor:pointer;" @onclick="NextCard">
+                    <div class="fs-3 text-primary">⏩</div>
+                    <div class="fw-bold text-primary" style="font-size: 0.9rem;">Đã biết, loại khỏi<br>danh sách ôn tập</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3 text-muted">
+            Thẻ @(currentIndex + 1) / @flashcards.Count
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int ListId { get; set; }
+
+    private List<FlashcardDto> flashcards;
+    private int currentIndex = 0;
+    private bool isFlipped = false;
+
+    private FlashcardDto CurrentCard => flashcards[currentIndex];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            flashcards = await Http.GetFromJsonAsync<List<FlashcardDto>>($"api/WordLists/{ListId}/flashcards");
+        }
+        catch { }
+    }
+
+    // Hàm lật thẻ
+    private void FlipCard()
+    {
+        isFlipped = !isFlipped;
+    }
+
+    // Hàm chuyển sang thẻ tiếp theo
+    private void NextCard()
+    {
+        if (currentIndex < flashcards.Count - 1)
+        {
+            currentIndex++;
+            isFlipped = false; 
+        }
+        else
+        {
+            JS.InvokeVoidAsync("alert", "Chúc mừng! Bạn đã hoàn thành list từ vựng này.");
+            NavigationManager.NavigateTo($"/flashcardlist/{ListId}"); 
+        }
+    }
+
+    // Hàm đọc âm thanh
+    private async Task PlayAudio()
+    {
+        await JS.InvokeVoidAsync("speakChinese", CurrentCard.FrontText);
+    }
+
+    // Class model 
+    public class FlashcardDto
+    {
+        public int Id { get; set; }
+        public string FrontText { get; set; }
+        public string BackText { get; set; }
+        public string Pinyin { get; set; }
+        public string Example { get; set; }
+    }
+}

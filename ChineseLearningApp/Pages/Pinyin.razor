@@ -1,0 +1,125 @@
+﻿@page "/pinyin"
+@inject IJSRuntime JS
+
+<style>
+    /* CSS tạo hiệu ứng nổi lên khi di chuột vào các ô âm tiết */
+    .pinyin-card {
+        border-radius: 12px;
+        border: 2px solid #f0f0f0;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        background-color: white;
+    }
+
+        .pinyin-card:hover {
+            border-color: #00a8ff;
+            box-shadow: 0 4px 12px rgba(0, 168, 255, 0.15);
+            transform: translateY(-3px);
+        }
+</style>
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+
+    <div class="text-center mb-5">
+        <h1 class="fw-bold">Học phiên âm tiếng Trung</h1>
+        <p class="text-muted fs-5">Làm quen với các âm tiết trong tiếng Trung</p>
+        <button class="btn btn-primary px-4 py-2 mt-2 fw-bold" style="border-radius: 25px; background-color: #00a8ff; border: none;">
+            Bắt đầu học
+        </button>
+    </div>
+
+    <div class="mb-5 text-center">
+        <h4 class="fw-bold mb-1">Thanh điệu</h4>
+        <p class="text-muted mb-4">Mỗi âm tiết có năm thanh điệu khác nhau</p>
+
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+            @foreach (var tone in Tones)
+            {
+                <div class="pinyin-card p-3 text-center" style="min-width: 100px;" @onclick="() => PlayAudio(tone.Pinyin)">
+                    <h3 class="fw-bold mb-1">@tone.Pinyin</h3>
+                    <div class="text-muted small">@tone.Name</div>
+                    <div class="mt-2 mx-auto" style="height: 3px; width: 40px; background-color: #e0e0e0; border-radius: 2px;"></div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mb-5 text-center">
+        <h4 class="fw-bold mb-1">Âm đầu</h4>
+        <p class="text-muted mb-4">Là âm mở đầu của một âm tiết</p>
+
+        <div class="row row-cols-3 row-cols-md-4 row-cols-lg-5 g-3 justify-content-center">
+            @foreach (var initial in Initials)
+            {
+                <div class="col">
+                    <div class="pinyin-card py-3 text-center" @onclick="() => PlayAudio(initial)">
+                        <h4 class="fw-bold mb-1">@initial</h4>
+                        <div class="mt-2 mx-auto" style="height: 3px; width: 30px; background-color: #e0e0e0; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="text-center">
+        <h4 class="fw-bold mb-1">Âm đuôi</h4>
+        <p class="text-muted mb-4">Là âm cuối của một âm tiết</p>
+
+        <div class="row row-cols-3 row-cols-md-4 row-cols-lg-5 g-3 justify-content-center">
+            @foreach (var final in Finals)
+            {
+                <div class="col">
+                    <div class="pinyin-card py-3 text-center" @onclick="() => PlayAudio(final)">
+                        <h4 class="fw-bold mb-1">@final</h4>
+                        <div class="mt-2 mx-auto" style="height: 3px; width: 30px; background-color: #e0e0e0; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@code {
+    // Gọi hàm đọc tiếng Trung (Web Speech API)
+    private async Task PlayAudio(string text)
+    {
+        await JS.InvokeVoidAsync("speakChinese", text);
+    }
+
+    // --- DỮ LIỆU CÁC ÂM TIẾT ---
+
+    // Danh sách Thanh điệu
+    private List<ToneModel> Tones = new List<ToneModel>
+    {
+        new ToneModel { Pinyin = "mā", Name = "thanh 1" },
+        new ToneModel { Pinyin = "má", Name = "thanh 2" },
+        new ToneModel { Pinyin = "mǎ", Name = "thanh 3" },
+        new ToneModel { Pinyin = "mà", Name = "thanh 4" },
+        new ToneModel { Pinyin = "ma", Name = "thanh nhẹ" }
+    };
+
+    // Danh sách Âm đầu
+    private string[] Initials = new string[] {
+        "b", "p", "m", "f", "d", "t", "n", "l",
+        "g", "k", "h", "j", "q", "x", "zh", "ch",
+        "sh", "r", "z", "c", "s"
+    };
+
+    // Danh sách Âm đuôi
+    private string[] Finals = new string[] {
+        "a", "ai", "ao", "an", "ang",
+        "e", "ei", "en", "eng",
+        "i", "ia", "iao", "ian", "iang",
+        "o", "ou", "ong",
+        "u", "ua", "uai", "uan", "uang",
+        "ü", "üe", "ün", "er"
+    };
+
+    // Class phụ để lưu thông tin Thanh điệu
+    public class ToneModel
+    {
+        public string Pinyin { get; set; }
+        public string Name { get; set; }
+    }
+}

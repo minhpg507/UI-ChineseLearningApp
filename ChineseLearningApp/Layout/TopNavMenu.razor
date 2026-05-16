@@ -1,0 +1,217 @@
+﻿<style>
+    /* 1. Reset Navbar để thanh mảnh hơn */
+    .custom-navbar {
+        height: 65px;
+        border-bottom: 1px solid #f1f5f9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* 2. Style cho từng mục Menu */
+    .nav-link-custom {
+        color: #475569; 
+        font-weight: 600;
+        font-size: 0.95rem; 
+        padding: 8px 16px; 
+        border-radius: 8px; 
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px; /* Khoảng cách giữa chữ và mũi tên */
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+        /* 3. Trạng thái Active (Ô màu xanh tươi) */
+        .nav-link-custom.active {
+            background-color: #0ea5e9; 
+            color: white !important;
+        }
+
+        /* 4. Hiệu ứng Hover nhẹ nhàng */
+        .nav-link-custom:hover:not(.active) {
+            color: #0ea5e9;
+            background-color: #f8fafc;
+        }
+
+    /* 5. Style cho Dropdown */
+    .dropdown-custom:hover .dropdown-menu {
+        display: block;
+        border-radius: 12px;
+        margin-top: 0;
+        border: 1px solid #e2e8f0;
+    }
+</style>
+
+<nav class="navbar custom-navbar bg-white sticky-top shadow-sm">
+    <div class="container-fluid px-4 px-lg-5 d-flex justify-content-between align-items-center h-100">
+
+        <a class="navbar-brand fw-bold fs-4 m-0" href="/">
+            <span style="color: #0ea5e9;">Trần</span><span class="text-dark ms-1">Nhi</span>
+        </a>
+
+        <div class="d-none d-lg-flex align-items-center gap-2">
+
+            <div class="me-3" style="cursor: pointer; color: #64748b; font-size: 1.1rem;">
+                🔍
+            </div>
+
+            <NavLink class="nav-link-custom" href="/" Match="NavLinkMatch.All">Trang chủ</NavLink>
+            <NavLink class="nav-link-custom" href="/pinyin">Phiên âm</NavLink>
+            <NavLink class="nav-link-custom" href="/leaderboard">Bảng xếp hạng</NavLink>
+            <NavLink class="nav-link-custom" href="/community">Cộng đồng</NavLink>
+            <NavLink class="nav-link-custom" href="/exam">Đề thi online</NavLink>
+
+            <div class="dropdown dropdown-custom">
+                <a class="nav-link-custom" href="#">
+                    Luyện tập <span style="font-size: 0.65rem;">▼</span>
+                </a>
+                <ul class="dropdown-menu shadow-sm">
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="/flashcardlist/1">🎓 Luyện từ vựng</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="/luyen-dich">📝 Luyện dịch</a></li>
+                </ul>
+            </div>
+
+            <div class="dropdown dropdown-custom">
+                <a class="nav-link-custom" href="#">
+                    Lộ trình học tập <span style="font-size: 0.65rem;">▼</span>
+                </a>
+                <ul class="dropdown-menu shadow-sm">
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 1</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 2</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 3</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 4</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 5</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-secondary" href="#">🗺️ Lộ trình HSK 6</a></li>
+                </ul>
+            </div>
+
+            <NavLink class="nav-link-custom" href="/support">Ủng hộ chúng tớ</NavLink>
+        </div>
+
+        <div class="d-flex align-items-center gap-4 position-relative">
+            <div style="cursor: pointer; color: #64748b; font-size: 1.3rem;">
+                🔔
+            </div>
+
+            <div class="dropdown" style="z-index: 1050;">
+                <div class="d-flex align-items-center" style="cursor: pointer;" @onclick="ToggleAvatarMenu">
+                    <span class="fw-bold me-2 fs-5" style="color: #0ea5e9;">1 🔥</span>
+                    <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white shadow-sm"
+                         style="width: 38px; height: 38px; background-color: #f59e0b; border: 2px solid #0ea5e9;">
+                        N
+                    </div>
+                </div>
+
+                <ul class="dropdown-menu shadow-lg border-0 mt-2 p-2 @(showAvatarMenu ? "show" : "")"
+                    style="width: 260px; border-radius: 12px; right: 0 !important; left: auto !important; position: absolute;">
+
+                    <li class="p-3 text-center border-bottom mb-2">
+                        <h5 class="fw-bold mb-1" style="color: #0f172a;">Hà Đức Minh <span style="color: #0ea5e9;">✔</span></h5>
+                        <p class="text-muted small mb-2">haduc.min507@gmail.com</p>
+                        <p class="small mb-1 text-secondary">Vai trò: Học viên</p>
+                        <p class="small mb-1 text-secondary">Hạng thành viên: 🎖️</p>
+                        <p class="fw-bold mt-2 mb-0" style="color: #0ea5e9;">Coin: 60</p>
+                    </li>
+
+                    <li><a class="dropdown-item py-2 text-secondary fw-bold d-flex align-items-center gap-2" href="#">📄 Bài đã học</a></li>
+                    <li><a class="dropdown-item py-2 text-secondary fw-bold d-flex align-items-center gap-2" href="#">🏪 Cửa hàng item</a></li>
+                    <li><a class="dropdown-item py-2 text-secondary fw-bold d-flex align-items-center gap-2" href="/profile" @onclick="CloseMenu">👤 Hồ sơ cá nhân</a></li>
+                    <li><a class="dropdown-item py-2 text-secondary fw-bold d-flex align-items-center gap-2" href="#">⚙️ Đổi mật khẩu</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item py-2 text-danger fw-bold d-flex align-items-center gap-2" href="#">🚪 Đăng xuất</a></li>
+                </ul>
+            </div>
+
+            @if (showAvatarMenu)
+            {
+                <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040;" @onclick="CloseMenu"></div>
+            }
+        </div>
+
+    </div>
+    @* ========================================== *@
+    @* MODAL ĐĂNG NHẬP / ĐĂNG KÝ                  *@
+    @* ========================================== *@
+    @if (showLoginModal)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050;">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+
+                    <div class="modal-header border-0 pb-0 pt-4 px-4 position-relative">
+                        <h4 class="modal-title fw-bold w-100 text-center">Đăng nhập</h4>
+                        <button type="button" class="btn-close position-absolute" style="right: 20px; top: 20px;" @onclick="CloseLoginModal"></button>
+                    </div>
+
+                    <div class="modal-body p-4 pt-3">
+                        <p class="text-center text-muted small mb-4">Chào mừng bạn quay lại! Hãy đăng nhập để lưu trữ tiến độ học tập.</p>
+
+                        <button class="btn w-100 mb-3 d-flex align-items-center justify-content-center gap-2 fw-bold"
+                                style="border: 1px solid #e2e8f0; border-radius: 12px; height: 48px; background-color: white; color: #334155; transition: all 0.2s;">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style="width: 24px; height: 24px;" />
+                            Tiếp tục với Google
+                        </button>
+
+                        <button class="btn w-100 mb-4 d-flex align-items-center justify-content-center gap-2 fw-bold text-white"
+                                style="border: none; border-radius: 12px; height: 48px; background-color: #1877f2; transition: all 0.2s;">
+                            <img src="https://www.svgrepo.com/show/448224/facebook.svg" alt="Facebook" style="width: 24px; height: 24px; filter: brightness(0) invert(1);" />
+                            Tiếp tục với Facebook
+                        </button>
+
+                        <div class="d-flex align-items-center mb-4">
+                            <hr class="flex-grow-1 m-0">
+                            <span class="mx-3 text-muted small fw-bold">HOẶC EMAIL</span>
+                            <hr class="flex-grow-1 m-0">
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="email" class="form-control" placeholder="Email của bạn" style="border-radius: 10px; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                        </div>
+                        <div class="mb-4">
+                            <input type="password" class="form-control" placeholder="Mật khẩu" style="border-radius: 10px; padding: 12px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                        </div>
+
+                        <button class="btn w-100 fw-bold text-white mb-3" style="background-color: #00a8ff; border-radius: 10px; height: 48px;">
+                            Đăng nhập
+                        </button>
+
+                        <div class="text-center">
+                            <a href="#" class="text-decoration-none small fw-bold" style="color: #00a8ff;">Quên mật khẩu?</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    }
+
+@code {
+    private bool showLoginModal = false;
+
+    private void OpenLoginModal()
+    {
+        showLoginModal = true;
+    }
+
+    private void CloseLoginModal()
+    {
+        showLoginModal = false;
+    }
+}
+@code {
+    // Biến lưu trạng thái đóng/mở của bảng Avatar
+    private bool showAvatarMenu = false;
+
+    // Hàm đảo ngược trạng thái (đang mở thì đóng, đang đóng thì mở)
+    private void ToggleAvatarMenu()
+    {
+        showAvatarMenu = !showAvatarMenu;
+    }
+
+    // Hàm ép buộc đóng menu (dùng khi click ra ngoài màn hình hoặc chuyển trang)
+    private void CloseMenu()
+    {
+        showAvatarMenu = false;
+    }
+}
+</nav>
